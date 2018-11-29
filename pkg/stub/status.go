@@ -95,7 +95,7 @@ func (h *Handler) updateStatus(m *v1alpha1.PerconaServerMongoDB, replset *v1alph
 	if h.pods == nil {
 		h.pods = podk8s.NewPods(m.Name, m.Namespace)
 	}
-	h.pods.SetPods(podsList.Items)
+	h.pods.Update(podsList.Items)
 
 	return podsList, nil
 }

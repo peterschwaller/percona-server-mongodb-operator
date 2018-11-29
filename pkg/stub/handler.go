@@ -11,8 +11,10 @@ import (
 	podk8s "github.com/percona/mongodb-orchestration-tools/pkg/pod/k8s"
 	watchdog "github.com/percona/mongodb-orchestration-tools/watchdog"
 	wdConfig "github.com/percona/mongodb-orchestration-tools/watchdog/config"
+	wdMetrics "github.com/percona/mongodb-orchestration-tools/watchdog/metrics"
 
 	opSdk "github.com/operator-framework/operator-sdk/pkg/sdk"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -53,6 +55,7 @@ func (h *Handler) ensureWatchdog(m *v1alpha1.PerconaServerMongoDB, usersSecret *
 	}
 
 	// Start the watchdog if it has not been started
+	wdMetricsCollector := wdMetrics.NewCollector()
 	h.watchdog = watchdog.New(&wdConfig.Config{
 		ServiceName:    m.Name,
 		Username:       string(usersSecret.Data[motPkg.EnvMongoDBClusterAdminUser]),
@@ -60,8 +63,11 @@ func (h *Handler) ensureWatchdog(m *v1alpha1.PerconaServerMongoDB, usersSecret *
 		APIPoll:        5 * time.Second,
 		ReplsetPoll:    5 * time.Second,
 		ReplsetTimeout: 3 * time.Second,
-	}, &h.watchdogQuit, h.pods)
+	}, h.pods, wdMetricsCollector, &h.watchdogQuit)
 	go h.watchdog.Run()
+
+	// register the watchdog metrics collector with prometheus
+	prometheus.MustRegister(wdMetricsCollector)
 
 	return nil
 }
