@@ -218,14 +218,14 @@ func (h *Handler) ensureReplsetStatefulSet(m *v1alpha1.PerconaServerMongoDB, rep
 }
 
 // ensureReplset ensures resources for a PSMDB replset exist
-func (h *Handler) ensureReplset(m *v1alpha1.PerconaServerMongoDB, podList *corev1.PodList, replset *v1alpha1.ReplsetSpec, usersSecret *corev1.Secret) error {
+func (h *Handler) ensureReplset(m *v1alpha1.PerconaServerMongoDB, podList *corev1.PodList, replset *v1alpha1.ReplsetSpec, usersSecret *corev1.Secret) (*appsv1.StatefulSet, error) {
 	status := getReplsetStatus(m, replset)
 
 	// Create the StatefulSet if it doesn't exist
 	set, err := h.ensureReplsetStatefulSet(m, replset)
 	if err != nil {
 		logrus.Errorf("failed to create stateful set for replset %s: %v", replset.Name, err)
-		return err
+		return nil, err
 	}
 
 	// Initiate the replset if it hasn't already been initiated + there are pods +
@@ -233,12 +233,12 @@ func (h *Handler) ensureReplset(m *v1alpha1.PerconaServerMongoDB, podList *corev
 	if !isReplsetInitialized(m, replset, status, podList, usersSecret) && len(podList.Items) >= 1 && time.Since(h.startedAt) > ReplsetInitWait {
 		err = h.handleReplsetInit(m, replset, podList.Items)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		status.Initialized = true
 		err = h.client.Update(m)
 		if err != nil {
-			return fmt.Errorf("failed to update status for replset %s: %v", replset.Name, err)
+			return nil, fmt.Errorf("failed to update status for replset %s: %v", replset.Name, err)
 		}
 		logrus.Infof("changed state to initialised for replset %s", replset.Name)
 	}
@@ -247,7 +247,7 @@ func (h *Handler) ensureReplset(m *v1alpha1.PerconaServerMongoDB, podList *corev
 	if isReplsetInitialized(m, replset, status, podList, usersSecret) {
 		err = h.ensureWatchdog(m, usersSecret)
 		if err != nil {
-			return fmt.Errorf("failed to start watchdog: %v", err)
+			return nil, fmt.Errorf("failed to start watchdog: %v", err)
 		}
 	}
 
@@ -256,7 +256,7 @@ func (h *Handler) ensureReplset(m *v1alpha1.PerconaServerMongoDB, podList *corev
 		err = h.persistentVolumeClaimReaper(m, podList.Items, replset, status)
 		if err != nil {
 			logrus.Errorf("failed to run persistent volume claim reaper for replset %s: %v", replset.Name, err)
-			return err
+			return nil, err
 		}
 	}
 
@@ -266,11 +266,11 @@ func (h *Handler) ensureReplset(m *v1alpha1.PerconaServerMongoDB, podList *corev
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			logrus.Errorf("failed to create psmdb service: %v", err)
-			return err
+			return nil, err
 		}
 	} else {
 		logrus.Infof("created service %s", service.Name)
 	}
 
-	return nil
+	return set, nil
 }
