@@ -255,10 +255,11 @@
     "pkg/pod/k8s",
     "watchdog",
     "watchdog/config",
+    "watchdog/metrics",
     "watchdog/replset",
     "watchdog/watcher"
   ]
-  revision = "e64e668d6d516e4f224e936adca9fae3c97932f7"
+  revision = "664b7ebbe519990dce8f7581ff59a1b43a2afc0c"
 
 [[projects]]
   branch = "master"
@@ -712,6 +713,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d95735d2867301a047396e4e09d8c4232276872653f66f7220cf3c97ad997452"
+  inputs-digest = "075635534539185332b410ef96a6e2625fa8854692a9250573d348cb6c4d1e42"
   solver-name = "gps-cdcl"
   solver-version = 1
